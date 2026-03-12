@@ -1,0 +1,5 @@
+echo "venv/
+.env
+libros.db
+__pycache__/
+*.pyc" > .gitignore
