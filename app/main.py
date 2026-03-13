@@ -20,7 +20,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "https://sistema-libros-frontend.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,17 +34,14 @@ app.add_middleware(
 
 @app.post("/register", response_model=schemas.UsuarioOut, tags=["Usuarios"])
 def register(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    """Registrar un nuevo usuario"""
     existing_user = crud.obtener_usuario_por_email(db, usuario.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
-    
     new_user = crud.crear_usuario(db, usuario)
     return new_user
 
 @app.post("/login", response_model=schemas.TokenResponse, tags=["Usuarios"])
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Login y obtener JWT token"""
     user = crud.obtener_usuario_por_email(db, form_data.username)
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -46,13 +49,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Usuario o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
     access_token = security.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/me", response_model=schemas.UsuarioOut, tags=["Usuarios"])
 def get_current_user_info(current_user: models.Usuario = Depends(get_current_user)):
-    """Obtener información del usuario actual"""
     return current_user
 
 @app.get("/books", response_model=List[schemas.LibroOut], tags=["Libros"])
@@ -62,7 +63,6 @@ def get_books(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Obtener libros del usuario logueado con paginación"""
     books = crud.obtener_libros_por_usuario(db, current_user.id, skip=skip, limit=limit)
     return books
 
@@ -71,7 +71,6 @@ def count_books(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Contar total de libros del usuario"""
     total = crud.contar_libros_por_usuario(db, current_user.id)
     return {"total": total}
 
@@ -81,7 +80,6 @@ def get_book(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Obtener un libro específico"""
     book = crud.obtener_libro_por_id(db, book_id)
     if not book or book.propietario_id != current_user.id:
         raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -93,7 +91,6 @@ def create_book(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Crear un nuevo libro"""
     new_book = crud.crear_libro(db, book, current_user.id)
     return new_book
 
@@ -104,7 +101,6 @@ def update_book(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Editar un libro existente"""
     updated_book = crud.actualizar_libro(db, book_id, book, current_user.id)
     if not updated_book:
         raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -116,12 +112,10 @@ def delete_book(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
-    """Eliminar un libro"""
     if not crud.eliminar_libro(db, book_id, current_user.id):
         raise HTTPException(status_code=404, detail="Libro no encontrado")
     return {"message": "Libro eliminado correctamente"}
 
 @app.get("/health", tags=["Sistema"])
 def health_check():
-    """Verificar que el servidor está funcionando"""
     return {"status": "OK"}
